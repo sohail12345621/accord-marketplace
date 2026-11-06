@@ -1,47 +1,11 @@
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-
-from app.config import get_settings
-from app.db import Base, get_db
 from app.main import app
-from app.models import Deal, Listing, User
-from app.seed import seed_database
+from app.models import User
 from app.services.commitments import extract_commitments
 from app.services.risk import analyze_risk
 from app.services.trust import trust_profile
-
-# Static test SQLite engine (file-based or shared cache) so sessions see the tables
-test_engine = create_engine("sqlite:///./test_accord.db", connect_args={"check_same_thread": False})
-TestingSessionLocal = sessionmaker(bind=test_engine, autoflush=False, expire_on_commit=False)
-
-
-def override_get_db():
-    db = TestingSessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
-app.dependency_overrides[get_db] = override_get_db
-
-
-@pytest.fixture(autouse=True, scope="module")
-def setup_db():
-    Base.metadata.create_all(bind=test_engine)
-    db = TestingSessionLocal()
-    seed_database(db)
-    db.close()
-    yield
-    test_engine.dispose()
-    import os
-    try:
-        if os.path.exists("./test_accord.db"):
-            os.remove("./test_accord.db")
-    except Exception:
-        pass
+from tests.conftest import TestingSessionLocal
 
 
 @pytest.fixture
@@ -120,7 +84,7 @@ def test_marketplace_and_ask(client):
 # 6. Deal Conversation & Auto-Commitment Ingestion
 def test_conversation_and_deal_ledger(client):
     headers = login(client, email="seller@accord.demo")
-    # Post a message making a new promise (e.g. cycle count or storage)
+    # Post a message making a new promise
     res = client.post(
         "/api/deals/deal_demo_iphone/messages",
         headers=headers,
@@ -129,7 +93,6 @@ def test_conversation_and_deal_ledger(client):
     assert res.status_code == 201
     data = res.json()
     assert "message" in data
-    # Check that commitment was identified
     assert len(data.get("commitments_added", [])) + len(data.get("commitments_pending", [])) > 0
 
 

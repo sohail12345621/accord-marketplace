@@ -46,6 +46,10 @@ class NexconnManager {
     return this.state;
   }
 
+  public getCurrentChatId(): string | null {
+    return this.currentChatId;
+  }
+
   private setState(newState: NexconnConnectionState, detail?: string) {
     this.state = newState;
     this.statusListeners.forEach((cb) => cb(newState, detail));
@@ -69,21 +73,13 @@ class NexconnManager {
 
   /**
    * Safe centralized connection flow:
-   * 1. Query secure backend endpoint /api/chat/token
-   * 2. If Nexconn live keys configured on backend, initialize SDK once and connect
-   * 3. Register handlers before connecting (per Nexconn best practices)
-   * 4. Handle disconnect, reconnection, and local transport fallback seamlessly
+   * 1. Query secure backend endpoint /api/chat/token for current user
+   * 2. If already connected as a different user, disconnect first
+   * 3. Register handlers before connecting
    */
   public async initAndConnect(): Promise<void> {
-    if (this.connected || this.state === 'connecting') {
-      return;
-    }
-
-    this.setState('connecting');
-
     try {
-      // Step 1: Securely obtain token from Accord Backend
-      // Notice: NEXCONN APP SECRET NEVER TOUCHES FRONTEND!
+      console.log('[NEXCONN_CONNECT] Requesting chat token from Accord backend');
       const res = await apiFetch<{
         enabled: boolean;
         app_key?: string;
@@ -93,15 +89,27 @@ class NexconnManager {
         mode: string;
       }>('/chat/token');
 
+      // If user switched, disconnect old session first
+      if (this.currentChatId && this.currentChatId !== res.user_id) {
+        console.log('[NEXCONN_USER_SWITCH] Disconnecting previous chat ID:', this.currentChatId);
+        await this.disconnect();
+      }
+
       this.currentChatId = res.user_id;
 
       if (!res.enabled || !res.app_key || !res.token) {
-        console.info('[Accord Chat] Server running local transport fallback mode.');
+        console.info('[NEXCONN_CONNECT] Server running local transport fallback mode for user:', res.user_id);
         this.setState('fallback_local', res.mode);
         return;
       }
 
-      // Step 2: Initialize Nexconn SDK exactly once per app lifecycle
+      if (this.connected) {
+        return;
+      }
+
+      this.setState('connecting');
+
+      // Initialize SDK once
       if (!this.initialized) {
         try {
           const areaCode = res.area === 'NA' ? AreaCode.NA : AreaCode.SG;
@@ -112,12 +120,10 @@ class NexconnManager {
           });
           this.initialized = true;
 
-          // Step 3: Register event handlers before calling connect
           NCEngine.addConnectionStatusHandler(
             'accord-conn-handler',
             new ConnectionStatusHandler({
               onConnectionStatusChanged: ({ status, code }) => {
-                console.log('[Nexconn] Connection status changed:', status, code);
                 if (status === 0) {
                   this.connected = true;
                   this.setState('connected');
@@ -163,25 +169,21 @@ class NexconnManager {
         }
       }
 
-      // Step 4: Connect with short-lived user access token
+      // Connect with current user token
       const connectRes = await NCEngine.connect({ token: res.token });
       if (connectRes.isOk || connectRes.code === 0) {
         this.connected = true;
         this.setState('connected');
-        console.log('[Nexconn] Connected successfully. Chat user id:', connectRes.data?.userId);
+        console.log('[NEXCONN_CONNECT] Connected successfully for user ID:', connectRes.data?.userId);
       } else {
-        console.warn('[Nexconn] Connect call returned non-zero code:', connectRes.code);
         this.setState('fallback_local', `Code ${connectRes.code}`);
       }
     } catch (err: any) {
-      console.warn('[Nexconn] Connect attempt errored, using reliable local fallback:', err.message);
+      console.warn('[NEXCONN_CONNECT] Connect fallback:', err.message);
       this.setState('fallback_local', err.message);
     }
   }
 
-  /**
-   * Sends a real-time message through a Direct Channel to the target user.
-   */
   public async sendDirectMessage(
     targetChatId: string,
     text: string
@@ -199,8 +201,6 @@ class NexconnManager {
         return { success: false, error: e.message };
       }
     }
-
-    // If local fallback mode, messages flow through Accord's server endpoints
     return { success: true };
   }
 
@@ -210,17 +210,18 @@ class NexconnManager {
         const directChan = new DirectChannel(targetChatId);
         await directChan.sendTypingStatus('RC:TxtMsg');
       } catch {
-        // Typing status is best-effort transient signal
+        // Best-effort transient typing indicator
       }
     }
   }
 
   public async disconnect(): Promise<void> {
+    console.log('[NEXCONN_DISCONNECT] Tearing down connection for user:', this.currentChatId);
     if (this.connected && this.initialized) {
       try {
         await NCEngine.disconnect();
       } catch (e) {
-        console.error('Nexconn disconnect error:', e);
+        console.warn('Nexconn disconnect error:', e);
       }
     }
     this.connected = false;

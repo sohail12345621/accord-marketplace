@@ -5,11 +5,11 @@ import {
   MessageSquare,
   Package,
   AlertTriangle,
-  LayoutDashboard,
   LogOut,
   Sparkles,
-  UserCheck,
   ChevronDown,
+  LogIn,
+  UserPlus,
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -47,7 +47,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, navigate }) => {
           <nav className="hidden md:flex items-center space-x-1">
             <button
               onClick={() => navigate('/marketplace')}
-              className={`px-3 py-2 text-sm font-medium rounded-lg transition ${
+              className={`px-3 py-2 text-sm font-medium rounded-lg transition cursor-pointer ${
                 currentPath.startsWith('/marketplace') || currentPath.startsWith('/listing')
                   ? 'bg-slate-100 text-teal-800 font-semibold'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
@@ -59,7 +59,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, navigate }) => {
               <>
                 <button
                   onClick={() => navigate('/chat')}
-                  className={`px-3 py-2 text-sm font-medium rounded-lg transition ${
+                  className={`px-3 py-2 text-sm font-medium rounded-lg transition cursor-pointer ${
                     currentPath.startsWith('/chat')
                       ? 'bg-slate-100 text-teal-800 font-semibold'
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
@@ -72,7 +72,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, navigate }) => {
                 </button>
                 <button
                   onClick={() => navigate('/orders')}
-                  className={`px-3 py-2 text-sm font-medium rounded-lg transition ${
+                  className={`px-3 py-2 text-sm font-medium rounded-lg transition cursor-pointer ${
                     currentPath === '/orders'
                       ? 'bg-slate-100 text-teal-800 font-semibold'
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
@@ -85,7 +85,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, navigate }) => {
                 </button>
                 <button
                   onClick={() => navigate('/disputes')}
-                  className={`px-3 py-2 text-sm font-medium rounded-lg transition ${
+                  className={`px-3 py-2 text-sm font-medium rounded-lg transition cursor-pointer ${
                     currentPath.startsWith('/dispute')
                       ? 'bg-slate-100 text-teal-800 font-semibold'
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
@@ -103,82 +103,84 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, navigate }) => {
 
         {/* User / Demo switcher */}
         <div className="flex items-center space-x-3">
-          {/* Quick Demo Switcher Pill */}
-          <div className="relative">
-            <button
-              onClick={() => setDemoOpen(!demoOpen)}
-              className="flex items-center space-x-2 text-xs font-medium px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition"
-              title="Switch demo persona for testing"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-teal-600" />
-              <span>Demo Role: {user ? (user.role === 'support' ? 'Support' : user.name.split(' ')[0]) : 'Guest'}</span>
-              <ChevronDown className="w-3 h-3 text-slate-500" />
-            </button>
+          {/* Quick Demo Switcher Pill — ONLY available in development */}
+          {import.meta.env.DEV && (
+            <div className="relative">
+              <button
+                onClick={() => setDemoOpen(!demoOpen)}
+                className="flex items-center space-x-2 text-xs font-medium px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition cursor-pointer"
+                title="Switch test account (runs full real login)"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-teal-600" />
+                <span>Switch: {user ? (user.role === 'support' ? 'Support' : user.name.split(' ')[0]) : 'Guest'}</span>
+                <ChevronDown className="w-3 h-3 text-slate-500" />
+              </button>
 
-            {demoOpen && (
-              <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-50 text-xs">
-                <div className="px-3 py-1 text-[11px] font-semibold uppercase text-slate-400">
-                  Switch Test Persona
+              {demoOpen && (
+                <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-50 text-xs">
+                  <div className="px-3 py-1 text-[11px] font-semibold uppercase text-slate-400">
+                    Switch Test Account
+                  </div>
+                  <button
+                    onClick={async () => {
+                      setDemoOpen(false);
+                      await switchDemoUser('buyer');
+                    }}
+                    className="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center justify-between cursor-pointer"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <div className="w-2 h-2 rounded-full bg-sky-500"></div>
+                      <div>
+                        <div className="font-semibold text-slate-800">Aarav (Buyer)</div>
+                        <div className="text-[10px] text-slate-400">buyer@accord.demo</div>
+                      </div>
+                    </div>
+                    {user?.email === 'buyer@accord.demo' && <span className="text-teal-600 font-bold">✓</span>}
+                  </button>
+
+                  <button
+                    onClick={async () => {
+                      setDemoOpen(false);
+                      await switchDemoUser('seller');
+                    }}
+                    className="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center justify-between cursor-pointer"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <div className="w-2 h-2 rounded-full bg-teal-600"></div>
+                      <div>
+                        <div className="font-semibold text-slate-800">Vikram (Seller)</div>
+                        <div className="text-[10px] text-slate-400">seller@accord.demo</div>
+                      </div>
+                    </div>
+                    {user?.email === 'seller@accord.demo' && <span className="text-teal-600 font-bold">✓</span>}
+                  </button>
+
+                  <button
+                    onClick={async () => {
+                      setDemoOpen(false);
+                      await switchDemoUser('support');
+                    }}
+                    className="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center justify-between cursor-pointer"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <div className="w-2 h-2 rounded-full bg-purple-600"></div>
+                      <div>
+                        <div className="font-semibold text-slate-800">Accord Support</div>
+                        <div className="text-[10px] text-slate-400">support@accord.demo</div>
+                      </div>
+                    </div>
+                    {user?.email === 'support@accord.demo' && <span className="text-teal-600 font-bold">✓</span>}
+                  </button>
                 </div>
-                <button
-                  onClick={async () => {
-                    await switchDemoUser('buyer');
-                    setDemoOpen(false);
-                  }}
-                  className="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center justify-between"
-                >
-                  <div className="flex items-center space-x-2">
-                    <div className="w-2 h-2 rounded-full bg-sky-500"></div>
-                    <div>
-                      <div className="font-semibold text-slate-800">Aarav (Buyer)</div>
-                      <div className="text-[10px] text-slate-400">buyer@accord.demo</div>
-                    </div>
-                  </div>
-                  {user?.email === 'buyer@accord.demo' && <span className="text-teal-600 font-bold">✓</span>}
-                </button>
-
-                <button
-                  onClick={async () => {
-                    await switchDemoUser('seller');
-                    setDemoOpen(false);
-                  }}
-                  className="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center justify-between"
-                >
-                  <div className="flex items-center space-x-2">
-                    <div className="w-2 h-2 rounded-full bg-teal-600"></div>
-                    <div>
-                      <div className="font-semibold text-slate-800">Vikram (Seller)</div>
-                      <div className="text-[10px] text-slate-400">seller@accord.demo</div>
-                    </div>
-                  </div>
-                  {user?.email === 'seller@accord.demo' && <span className="text-teal-600 font-bold">✓</span>}
-                </button>
-
-                <button
-                  onClick={async () => {
-                    await switchDemoUser('support');
-                    setDemoOpen(false);
-                  }}
-                  className="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center justify-between"
-                >
-                  <div className="flex items-center space-x-2">
-                    <div className="w-2 h-2 rounded-full bg-purple-600"></div>
-                    <div>
-                      <div className="font-semibold text-slate-800">Accord Support</div>
-                      <div className="text-[10px] text-slate-400">support@accord.demo</div>
-                    </div>
-                  </div>
-                  {user?.email === 'support@accord.demo' && <span className="text-teal-600 font-bold">✓</span>}
-                </button>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
 
           {user ? (
             <div className="flex items-center space-x-2">
               <button
                 onClick={() => navigate('/dashboard')}
-                className="flex items-center space-x-2 px-2.5 py-1.5 rounded-lg hover:bg-slate-100 text-slate-700 transition"
+                className="flex items-center space-x-2 px-2.5 py-1.5 rounded-lg hover:bg-slate-100 text-slate-700 transition cursor-pointer"
               >
                 <div
                   className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold"
@@ -191,19 +193,29 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, navigate }) => {
 
               <button
                 onClick={logout}
-                className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition"
+                className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition cursor-pointer"
                 title="Log out"
               >
                 <LogOut className="w-4 h-4" />
               </button>
             </div>
           ) : (
-            <button
-              onClick={() => switchDemoUser('buyer')}
-              className="px-4 py-2 text-sm font-semibold text-white bg-teal-600 hover:bg-teal-700 rounded-lg shadow-sm transition"
-            >
-              Sign In (Demo)
-            </button>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => navigate('/login')}
+                className="px-3 py-1.5 text-xs font-semibold text-slate-700 hover:text-slate-900 border border-slate-300 rounded-lg hover:bg-slate-50 transition cursor-pointer flex items-center space-x-1"
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                <span>Sign In</span>
+              </button>
+              <button
+                onClick={() => navigate('/register')}
+                className="px-3.5 py-1.5 text-xs font-semibold text-white bg-teal-600 hover:bg-teal-700 rounded-lg shadow-sm transition cursor-pointer flex items-center space-x-1"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>Register</span>
+              </button>
+            </div>
           )}
         </div>
       </div>

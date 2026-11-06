@@ -12,6 +12,7 @@ __pycache__/
 backend/.venv/
 backend/accord.db
 backend/test_accord.db
+backend/test_suite.db
 backend/.pytest_cache/
 backend/uploads/
 
