@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=production
+      - DATABASE_URL=sqlite:///./accord.db
+      - JWT_SECRET=accord-production-dev-jwt-secret-key-32chars-min
+      - CORS_ORIGINS=http://localhost:5173,http://localhost:3000
+      - SEED_DEMO_DATA=true
+      - NEXCONN_APP_KEY=
+      - NEXCONN_APP_SECRET=
+      - NEXCONN_API_BASE=https://api.sg-light-api.com
+      - NEXCONN_AREA=SG
+      - AI_PROVIDER=none
+    volumes:
+      - accord-data:/app/uploads
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+volumes:
+  accord-data:
