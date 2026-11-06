@@ -86,6 +86,29 @@ Open `http://localhost:5173` in your browser.
 
 ---
 
+## 💬 Nexconn Chat SDK Configuration
+
+Accord utilizes the official **Nexconn Chat SDK** (`@nexconn/chat@26.2.1`) for persistent, real-time marketplace messaging.
+
+### 1. Environment Architecture
+
+| Environment | Variable | Purpose | Security |
+|---|---|---|---|
+| **Frontend** | `VITE_NEXCONN_APP_KEY` | Public App Key for SDK client initialization | Safe for browser bundle |
+| **Backend** | `NEXCONN_APP_KEY` | Server-side API key | Server only |
+| **Backend** | `NEXCONN_APP_SECRET` | Secret used to sign token requests & verify webhooks | **NEVER exposed to frontend** |
+| **Backend** | `NEXCONN_API_BASE` | Primary API endpoint (`https://api.sg-light-api.com`) | Server only |
+| **Backend** | `NEXCONN_AREA` | Data center area code (`SG` or `NA`) | Server only |
+
+### 2. User Identity & Token Exchange Flow
+1. **Deterministic User Mapping**: Every Accord user ID maps directly to a deterministic Nexconn identity: `accord_<user_id>`.
+2. **Safe Token Exchange**: When a user authenticates in Accord, the frontend requests `GET /api/chat/token`. The backend uses `NEXCONN_APP_SECRET` to compute the required SHA1 signature `sha1(AppSecret + Nonce + Timestamp)` and requests a user token via `POST /v4/auth/access-token/issue`.
+3. **Single Lifecycle Manager**: The frontend singleton `NexconnManager` (`frontend/src/services/nexconn.ts`) connects when a user logs in, cleanly disconnects on logout, and handles instant session teardown/reconnection during user switching.
+4. **Server Webhook Verification**: `POST /api/chat/webhook` verifies the incoming `Signature` header before ingesting messages into the Deal Ledger and triggering commitment extraction.
+5. **Zero Setup Fallback**: If Nexconn credentials are omitted during development, Accord automatically defaults to local transport mode without errors.
+
+---
+
 ## 🔑 Demo Personas & Credentials
 The application automatically seeds realistic demo data on launch. Password for all demo accounts:
 

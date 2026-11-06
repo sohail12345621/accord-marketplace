@@ -29,8 +29,8 @@ def uid() -> str:
 
 
 def chat_uid() -> str:
-    # Non-sequential Nexconn user id (docs recommend avoiding sequential ids).
-    return "u" + secrets.token_hex(10)
+    # Deterministic or non-sequential Nexconn user id (docs recommend avoiding sequential ids).
+    return "accord_" + uuid.uuid4().hex
 
 
 class Timestamped:
@@ -45,7 +45,14 @@ class User(Timestamped, Base):
     name: Mapped[str] = mapped_column(String(80))
     password_hash: Mapped[str] = mapped_column(String(255))
     role: Mapped[str] = mapped_column(String(16), default="user")  # user | support
-    chat_id: Mapped[str] = mapped_column(String(32), unique=True, default=chat_uid)
+    chat_id: Mapped[str] = mapped_column(String(64), unique=True, default=chat_uid)
+
+    def __init__(self, **kwargs):
+        if "id" not in kwargs:
+            kwargs["id"] = uid()
+        if "chat_id" not in kwargs or not kwargs["chat_id"]:
+            kwargs["chat_id"] = f"accord_{kwargs['id']}"
+        super().__init__(**kwargs)
     token_version: Mapped[int] = mapped_column(Integer, default=0)
     city: Mapped[str] = mapped_column(String(80), default="")
     avatar_color: Mapped[str] = mapped_column(String(16), default="#0f766e")

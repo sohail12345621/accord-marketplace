@@ -25,13 +25,19 @@ app.dependency_overrides[get_db] = override_get_db
 
 @pytest.fixture(autouse=True, scope="session")
 def setup_test_suite_db():
+    import os
+    test_engine.dispose()
+    if os.path.exists("./test_suite.db"):
+        try:
+            os.remove("./test_suite.db")
+        except Exception:
+            pass
     Base.metadata.create_all(bind=test_engine)
     db = TestingSessionLocal()
     seed_database(db)
     db.close()
     yield
     test_engine.dispose()
-    import os
     try:
         if os.path.exists("./test_suite.db"):
             os.remove("./test_suite.db")

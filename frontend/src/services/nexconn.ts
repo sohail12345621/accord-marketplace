@@ -83,22 +83,27 @@ class NexconnManager {
       const res = await apiFetch<{
         enabled: boolean;
         app_key?: string;
+        appKey?: string;
         token?: string;
-        user_id: string;
+        user_id?: string;
+        userId?: string;
         area?: string;
         mode: string;
       }>('/chat/token');
 
+      const userId = res.userId || res.user_id || '';
+      const appKey = (import.meta.env.VITE_NEXCONN_APP_KEY as string | undefined)?.trim() || res.appKey || res.app_key;
+
       // If user switched, disconnect old session first
-      if (this.currentChatId && this.currentChatId !== res.user_id) {
+      if (this.currentChatId && this.currentChatId !== userId) {
         console.log('[NEXCONN_USER_SWITCH] Disconnecting previous chat ID:', this.currentChatId);
         await this.disconnect();
       }
 
-      this.currentChatId = res.user_id;
+      this.currentChatId = userId;
 
-      if (!res.enabled || !res.app_key || !res.token) {
-        console.info('[NEXCONN_CONNECT] Server running local transport fallback mode for user:', res.user_id);
+      if (!res.enabled || !appKey || !res.token) {
+        console.info('[NEXCONN_CONNECT] Server running local transport fallback mode for user:', userId);
         this.setState('fallback_local', res.mode);
         return;
       }
@@ -114,7 +119,7 @@ class NexconnManager {
         try {
           const areaCode = res.area === 'NA' ? AreaCode.NA : AreaCode.SG;
           NCEngine.initialize({
-            appKey: res.app_key,
+            appKey: appKey,
             areaCode,
             logLevel: LogLevel.WARN,
           });

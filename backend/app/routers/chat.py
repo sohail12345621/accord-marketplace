@@ -22,21 +22,29 @@ def get_chat_token(user: User = Depends(current_user)):
     Crucially: NEXCONN_APP_SECRET is used ONLY on the backend to sign this request.
     The secret is never revealed to the frontend.
     """
+    nexconn_uid = user.chat_id or f"accord_{user.id}"
     if not settings.nexconn_enabled:
         return {
             "enabled": False,
-            "user_id": user.chat_id,
+            "user_id": nexconn_uid,
+            "userId": nexconn_uid,
             "name": user.name,
+            "app_key": settings.nexconn_app_key or "",
+            "appKey": settings.nexconn_app_key or "",
+            "area": settings.nexconn_area,
             "mode": "fallback_local",
             "message": "Nexconn credentials not configured on server; running local transport fallback.",
         }
     try:
-        token = issue_access_token(user.chat_id, user.name)
+        token = issue_access_token(nexconn_uid, user.name)
         return {
             "enabled": True,
             "app_key": settings.nexconn_app_key,
+            "appKey": settings.nexconn_app_key,
             "token": token,
-            "user_id": user.chat_id,
+            "user_id": nexconn_uid,
+            "userId": nexconn_uid,
+            "name": user.name,
             "area": settings.nexconn_area,
             "mode": "nexconn_live",
         }
@@ -44,8 +52,12 @@ def get_chat_token(user: User = Depends(current_user)):
         log.warning("Nexconn token generation failed: %s", e)
         return {
             "enabled": False,
-            "user_id": user.chat_id,
+            "user_id": nexconn_uid,
+            "userId": nexconn_uid,
             "name": user.name,
+            "app_key": settings.nexconn_app_key or "",
+            "appKey": settings.nexconn_app_key or "",
+            "area": settings.nexconn_area,
             "mode": "fallback_local",
             "error": "Failed to issue Nexconn token; falling back to local transport.",
         }
@@ -92,8 +104,20 @@ async def nexconn_webhook(
         if not text_body or not sender_chat_id or not target_chat_id:
             continue
 
-        sender = db.scalar(select(User).where(User.chat_id == sender_chat_id))
-        counterpart = db.scalar(select(User).where(User.chat_id == target_chat_id))
+        sender = db.scalar(
+            select(User).where(
+                (User.chat_id == sender_chat_id)
+                | (User.id == sender_chat_id)
+                | (User.id == sender_chat_id.replace("accord_", ""))
+            )
+        )
+        counterpart = db.scalar(
+            select(User).where(
+                (User.chat_id == target_chat_id)
+                | (User.id == target_chat_id)
+                | (User.id == target_chat_id.replace("accord_", ""))
+            )
+        )
         if not sender or not counterpart:
             continue
 
